@@ -2,12 +2,14 @@ using System.Text;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
+using Drawing = DocumentFormat.OpenXml.Wordprocessing.Drawing;
 
 namespace ElBruno.MarkItDotNet.Converters;
 
 /// <summary>
 /// Converts Word documents (.docx) to Markdown using DocumentFormat.OpenXml.
-/// Extracts headings, paragraphs, bold/italic formatting, lists, and tables.
+/// Extracts headings, paragraphs, bold/italic formatting, lists, tables,
+/// hyperlinks, images, nested lists, and footnotes.
 /// </summary>
 public class DocxConverter : IMarkdownConverter
 {
@@ -27,6 +29,12 @@ public class DocxConverter : IMarkdownConverter
             return Task.FromResult(string.Empty);
         }
 
+        var mainPart = doc.MainDocumentPart!;
+        var orderedNumIds = DetectOrderedNumberings(mainPart);
+        var footnotes = ExtractFootnotes(mainPart);
+        var footnoteIndex = new Dictionary<long, int>();
+        var footnoteCounter = 0;
+
         var sb = new StringBuilder();
 
         foreach (var element in body.Elements())
@@ -34,7 +42,7 @@ public class DocxConverter : IMarkdownConverter
             switch (element)
             {
                 case Paragraph paragraph:
-                    ProcessParagraph(paragraph, sb);
+                    ProcessParagraph(paragraph, mainPart, orderedNumIds, footnotes, footnoteIndex, ref footnoteCounter, sb);
                     break;
                 case Table table:
                     ProcessTable(table, sb);
@@ -42,16 +50,41 @@ public class DocxConverter : IMarkdownConverter
             }
         }
 
+        // Append footnotes at the end
+        if (footnoteIndex.Count > 0)
+        {
+            sb.AppendLine();
+            foreach (var kvp in footnoteIndex.OrderBy(k => k.Value))
+            {
+                if (footnotes.TryGetValue(kvp.Key, out var text))
+                {
+                    sb.AppendLine($"[^{kvp.Value}]: {text}");
+                }
+            }
+        }
+
         return Task.FromResult(sb.ToString().TrimEnd());
     }
 
-    private static void ProcessParagraph(Paragraph paragraph, StringBuilder sb)
+    private static void ProcessParagraph(
+        Paragraph paragraph,
+        MainDocumentPart mainPart,
+        HashSet<int> orderedNumIds,
+        Dictionary<long, string> footnotes,
+        Dictionary<long, int> footnoteIndex,
+        ref int footnoteCounter,
+        StringBuilder sb)
     {
         var styleId = paragraph.ParagraphProperties?.ParagraphStyleId?.Val?.Value;
+
+        // Skip footnote separator styles
+        if (styleId is "FootnoteText" or "FootnoteReference")
+            return;
+
         var headingLevel = GetHeadingLevel(styleId);
 
-        var text = GetFormattedText(paragraph);
-        if (string.IsNullOrWhiteSpace(text) && headingLevel == 0)
+        var formattedText = GetFormattedText(paragraph, mainPart, footnotes, footnoteIndex, ref footnoteCounter);
+        if (string.IsNullOrWhiteSpace(formattedText) && headingLevel == 0)
         {
             sb.AppendLine();
             return;
@@ -70,38 +103,123 @@ public class DocxConverter : IMarkdownConverter
             var level = numProps.NumberingLevelReference?.Val?.Value ?? 0;
             var indent = new string(' ', level * 2);
             sb.Append(indent);
-            sb.Append("- ");
+
+            var numId = numProps.NumberingId?.Val?.Value ?? 0;
+            if (orderedNumIds.Contains(numId))
+            {
+                sb.Append("1. ");
+            }
+            else
+            {
+                sb.Append("- ");
+            }
         }
 
-        sb.AppendLine(text);
+        sb.AppendLine(formattedText);
         sb.AppendLine();
     }
 
-    private static string GetFormattedText(Paragraph paragraph)
+    private static string GetFormattedText(
+        Paragraph paragraph,
+        MainDocumentPart mainPart,
+        Dictionary<long, string> footnotes,
+        Dictionary<long, int> footnoteIndex,
+        ref int footnoteCounter)
     {
         var sb = new StringBuilder();
 
-        foreach (var run in paragraph.Elements<Run>())
+        foreach (var child in paragraph.ChildElements)
         {
-            var runText = string.Concat(run.Elements<Text>().Select(t => t.Text));
-            if (string.IsNullOrEmpty(runText))
-                continue;
+            switch (child)
+            {
+                case Hyperlink hyperlink:
+                    ProcessHyperlink(hyperlink, mainPart, sb);
+                    break;
 
-            var props = run.RunProperties;
-            var isBold = props?.Bold is not null || props?.Bold?.Val?.Value == true;
-            var isItalic = props?.Italic is not null || props?.Italic?.Val?.Value == true;
-
-            if (isBold && isItalic)
-                sb.Append($"***{runText}***");
-            else if (isBold)
-                sb.Append($"**{runText}**");
-            else if (isItalic)
-                sb.Append($"*{runText}*");
-            else
-                sb.Append(runText);
+                case Run run:
+                    ProcessRun(run, footnotes, footnoteIndex, ref footnoteCounter, sb);
+                    break;
+            }
         }
 
         return sb.ToString();
+    }
+
+    private static void ProcessHyperlink(Hyperlink hyperlink, MainDocumentPart mainPart, StringBuilder sb)
+    {
+        var linkText = new StringBuilder();
+        foreach (var run in hyperlink.Elements<Run>())
+        {
+            linkText.Append(string.Concat(run.Elements<Text>().Select(t => t.Text)));
+        }
+
+        var displayText = linkText.ToString();
+        if (string.IsNullOrEmpty(displayText))
+            return;
+
+        var relationshipId = hyperlink.Id?.Value;
+        if (relationshipId is not null)
+        {
+            var rel = mainPart.HyperlinkRelationships
+                .FirstOrDefault(r => r.Id == relationshipId);
+            if (rel is not null)
+            {
+                sb.Append($"[{displayText}]({rel.Uri})");
+                return;
+            }
+        }
+
+        sb.Append(displayText);
+    }
+
+    private static void ProcessRun(
+        Run run,
+        Dictionary<long, string> footnotes,
+        Dictionary<long, int> footnoteIndex,
+        ref int footnoteCounter,
+        StringBuilder sb)
+    {
+        // Check for images (Drawing elements)
+        if (run.Descendants<Drawing>().Any())
+        {
+            sb.Append("![image](embedded-image)");
+            return;
+        }
+
+        // Check for footnote references
+        var footnoteRef = run.Descendants<FootnoteReference>().FirstOrDefault();
+        if (footnoteRef?.Id?.Value is not null)
+        {
+            var fnId = footnoteRef.Id.Value;
+            if (footnotes.ContainsKey(fnId) && !footnoteIndex.ContainsKey(fnId))
+            {
+                footnoteIndex[fnId] = ++footnoteCounter;
+            }
+
+            if (footnoteIndex.TryGetValue(fnId, out var idx))
+            {
+                sb.Append($"[^{idx}]");
+            }
+
+            return;
+        }
+
+        var runText = string.Concat(run.Elements<Text>().Select(t => t.Text));
+        if (string.IsNullOrEmpty(runText))
+            return;
+
+        var props = run.RunProperties;
+        var isBold = props?.Bold is not null || props?.Bold?.Val?.Value == true;
+        var isItalic = props?.Italic is not null || props?.Italic?.Val?.Value == true;
+
+        if (isBold && isItalic)
+            sb.Append($"***{runText}***");
+        else if (isBold)
+            sb.Append($"**{runText}**");
+        else if (isItalic)
+            sb.Append($"*{runText}*");
+        else
+            sb.Append(runText);
     }
 
     private static int GetHeadingLevel(string? styleId)
@@ -118,6 +236,74 @@ public class DocxConverter : IMarkdownConverter
         }
 
         return 0;
+    }
+
+    /// <summary>
+    /// Detects which numbering IDs correspond to ordered (numbered) lists.
+    /// </summary>
+    private static HashSet<int> DetectOrderedNumberings(MainDocumentPart mainPart)
+    {
+        var orderedIds = new HashSet<int>();
+        var numberingPart = mainPart.NumberingDefinitionsPart;
+        if (numberingPart?.Numbering is null)
+            return orderedIds;
+
+        var abstractNums = numberingPart.Numbering.Elements<AbstractNum>().ToList();
+        var numberingInstances = numberingPart.Numbering.Elements<NumberingInstance>().ToList();
+
+        foreach (var numInstance in numberingInstances)
+        {
+            var numId = numInstance.NumberID?.Value ?? 0;
+            var abstractNumId = numInstance.AbstractNumId?.Val?.Value ?? -1;
+            var abstractNum = abstractNums.FirstOrDefault(a => a.AbstractNumberId?.Value == abstractNumId);
+            if (abstractNum is null) continue;
+
+            // Check the first level's format
+            var firstLevel = abstractNum.Elements<Level>().FirstOrDefault(l => l.LevelIndex?.Value == 0);
+            var format = firstLevel?.NumberingFormat?.Val?.Value;
+            if (format == NumberFormatValues.Decimal ||
+                format == NumberFormatValues.UpperLetter ||
+                format == NumberFormatValues.LowerLetter ||
+                format == NumberFormatValues.UpperRoman ||
+                format == NumberFormatValues.LowerRoman)
+            {
+                orderedIds.Add(numId);
+            }
+        }
+
+        return orderedIds;
+    }
+
+    /// <summary>
+    /// Extracts footnotes from the document's FootnotesPart.
+    /// </summary>
+    private static Dictionary<long, string> ExtractFootnotes(MainDocumentPart mainPart)
+    {
+        var result = new Dictionary<long, string>();
+        var footnotesPart = mainPart.FootnotesPart;
+        if (footnotesPart?.Footnotes is null)
+            return result;
+
+        foreach (var footnote in footnotesPart.Footnotes.Elements<Footnote>())
+        {
+            var id = footnote.Id?.Value;
+            // Skip separator/continuation footnotes (ids 0 and -1)
+            if (id is null or 0 or -1)
+                continue;
+
+            var text = string.Join(" ", footnote.Elements<Paragraph>()
+                .Select(p => string.Concat(p.Elements<Run>()
+                    .SelectMany(r => r.Elements<Text>())
+                    .Select(t => t.Text))))
+                .Trim();
+
+            if (!string.IsNullOrEmpty(text))
+            {
+                result[id.Value] = text;
+            }
+        }
+
+        return result;
     }
 
     private static void ProcessTable(Table table, StringBuilder sb)

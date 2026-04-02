@@ -3,6 +3,9 @@ using Xunit;
 
 namespace ElBruno.MarkItDotNet.Tests;
 
+/// <summary>
+/// Backward-compatibility tests for the <see cref="MarkdownConverter"/> façade.
+/// </summary>
 public class MarkdownConverterTests
 {
     private readonly MarkdownConverter _converter = new();
@@ -26,6 +29,6 @@ public class MarkdownConverterTests
     {
         var act = () => _converter.ConvertToMarkdown("test.xyz");
         act.Should().Throw<NotSupportedException>()
-            .WithMessage("*not yet supported*");
+            .WithMessage("*not supported*");
     }
 }

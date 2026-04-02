@@ -1,10 +1,25 @@
+using ElBruno.MarkItDotNet.Converters;
+
 namespace ElBruno.MarkItDotNet;
 
 /// <summary>
-/// Converts various file formats to Markdown.
+/// Simple façade for converting files to Markdown.
+/// For advanced usage and DI scenarios, prefer <see cref="MarkdownService"/>.
 /// </summary>
 public class MarkdownConverter
 {
+    private readonly MarkdownService _service;
+
+    /// <summary>
+    /// Creates a new converter with all built-in converters registered.
+    /// </summary>
+    public MarkdownConverter()
+    {
+        var registry = new ConverterRegistry();
+        registry.Register(new PlainTextConverter());
+        _service = new MarkdownService(registry);
+    }
+
     /// <summary>
     /// Converts the content of a file to Markdown.
     /// </summary>
@@ -14,13 +29,12 @@ public class MarkdownConverter
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
-        var extension = Path.GetExtension(filePath).ToLowerInvariant();
-        return extension switch
+        var result = _service.ConvertAsync(filePath).GetAwaiter().GetResult();
+        if (!result.Success)
         {
-            ".txt" => ConvertTextFile(filePath),
-            _ => throw new NotSupportedException($"File format '{extension}' is not yet supported.")
-        };
-    }
+            throw new NotSupportedException(result.ErrorMessage);
+        }
 
-    private static string ConvertTextFile(string filePath) => File.ReadAllText(filePath);
+        return result.Markdown;
+    }
 }

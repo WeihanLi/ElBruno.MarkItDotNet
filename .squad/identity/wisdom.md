@@ -9,3 +9,4 @@ Reusable patterns and heuristics learned through work. NOT transcripts — each 
 ## Patterns
 
 <!-- Append entries below. Format: **Pattern:** description. **Context:** when it applies. -->
+**Pattern:** Use static factory methods on result types (`Succeeded`/`Failure`) instead of throwing exceptions from service classes. Reserve exceptions for the backward-compatible façade layer only. **Context:** Any service that returns an outcome to the caller — keeps control flow explicit and composable.

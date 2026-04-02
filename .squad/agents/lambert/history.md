@@ -28,3 +28,10 @@
 - **CI note:** build/test with `-p:TargetFrameworks=net8.0` to avoid net10.0 SDK requirement on CI
 - **Test project uses** `TargetFrameworks` (plural) `net8.0;net10.0` per task spec, unlike reference which used single `TargetFramework`
 - **FluentAssertions v8.3.0** chosen over NSubstitute (reference used NSubstitute but task specified FluentAssertions)
+
+### Phase 7 — CI/CD & NuGet Publishing Workflows (completed)
+- **ci.yml** (`.github/workflows/ci.yml`): Triggers on push/PR to main. Builds and tests with `net8.0` only via `-p:TargetFrameworks=net8.0`. Uploads trx test results as artifact. Exact pattern match with ElBruno.LocalLLMs.
+- **publish.yml** (`.github/workflows/publish.yml`): Triggers on release published or manual workflow_dispatch. Uses `release` environment. OIDC auth via `NuGet/login@v1` with `secrets.NUGET_USER`. Version determined from release tag > input > csproj fallback. Packs only the core library project. Pushes with `--skip-duplicate`.
+- **Key adaptation:** All paths changed from `ElBruno.LocalLLMs` to `ElBruno.MarkItDotNet` (solution file, csproj paths, test project path)
+- **OIDC pattern:** `id-token: write` permission required at job level, not workflow level. Login step outputs `NUGET_API_KEY` for push step.
+- **No net10.0 in CI:** Both workflows use `-p:TargetFrameworks=net8.0` to avoid net10.0 SDK requirement on GitHub runners

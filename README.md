@@ -213,7 +213,8 @@ registry.Register(new CsvConverter());
 
 ## Documentation
 
-- [Architecture](docs/architecture.md) — design decisions, converter pipeline, and internal structure
+- [Architecture](docs/architecture.md) — design decisions, plugin system, converter pipeline, and internal structure
+- [Plugins Guide](docs/plugins.md) — how to create custom plugin packages
 - [Building & Testing](docs/building-and-testing.md) — how to build from source and run tests
 - [Image Generation Prompts](docs/image-generation-prompts.md) — AI prompts for branding assets
 

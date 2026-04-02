@@ -23,10 +23,10 @@ jobs:
       - name: Restore
         run: dotnet restore ElBruno.MarkItDotNet.slnx -p:TargetFrameworks=net8.0
 
-      - name: Build
+      - name: Build all projects
         run: dotnet build ElBruno.MarkItDotNet.slnx --no-restore -p:TargetFrameworks=net8.0
 
-      - name: Test
+      - name: Run all tests
         run: dotnet test ElBruno.MarkItDotNet.slnx --no-build --framework net8.0 --verbosity normal --logger "trx;LogFileName=test-results.trx"
 
       - name: Upload test results

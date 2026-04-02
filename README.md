@@ -205,26 +205,38 @@ var registry = provider.GetRequiredService<ConverterRegistry>();
 registry.Register(new CsvConverter());
 ```
 
-## Building
+## Samples
 
-```bash
-dotnet build ElBruno.MarkItDotNet.slnx
-```
+| Sample | Description |
+|--------|-------------|
+| [BasicConversion](src/samples/BasicConversion) | Console app demonstrating text, JSON, and HTML conversion with DI |
 
-## Testing
+## Documentation
 
-```bash
-dotnet test ElBruno.MarkItDotNet.slnx
-```
+- [Architecture](docs/architecture.md) — design decisions, converter pipeline, and internal structure
+- [Building & Testing](docs/building-and-testing.md) — how to build from source and run tests
+- [Image Generation Prompts](docs/image-generation-prompts.md) — AI prompts for branding assets
 
-## Contributing
+## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit pull requests for bug fixes, new format support, or improvements to the existing converters.
+Contributions are welcome! Please:
 
-## License
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
 
 This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
 
-## Author
+## 👋 About the Author
 
-**Bruno Capuano** ([@elbruno](https://github.com/elbruno))
+**Made with ❤️ by [Bruno Capuano (ElBruno)](https://github.com/elbruno)**
+
+- 📝 **Blog**: [elbruno.com](https://elbruno.com)
+- 📺 **YouTube**: [youtube.com/elbruno](https://youtube.com/elbruno)
+- 🔗 **LinkedIn**: [linkedin.com/in/elbruno](https://linkedin.com/in/elbruno)
+- 𝕏 **Twitter**: [twitter.com/elbruno](https://twitter.com/elbruno)
+- 🎙️ **Podcast**: [notienenombre.com](https://notienenombre.com)

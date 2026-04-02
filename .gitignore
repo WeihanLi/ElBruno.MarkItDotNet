@@ -1,6 +1,5 @@
-# Squad: ignore generated logs
-.squad/orchestration-log/
-.squad/log/
+# Squad: team state lives on dev branches only
+.squad/
 
 ## .NET / MSBuild
 bin/

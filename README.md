@@ -14,6 +14,7 @@
 | [ElBruno.MarkItDotNet.PowerPoint](https://www.nuget.org/packages/ElBruno.MarkItDotNet.PowerPoint) | [![NuGet](https://img.shields.io/nuget/v/ElBruno.MarkItDotNet.PowerPoint.svg?style=flat-square)](https://www.nuget.org/packages/ElBruno.MarkItDotNet.PowerPoint) | [![Downloads](https://img.shields.io/nuget/dt/ElBruno.MarkItDotNet.PowerPoint.svg?style=flat-square)](https://www.nuget.org/packages/ElBruno.MarkItDotNet.PowerPoint) | PowerPoint (.pptx) → slides + notes |
 | [ElBruno.MarkItDotNet.AI](https://www.nuget.org/packages/ElBruno.MarkItDotNet.AI) | [![NuGet](https://img.shields.io/nuget/v/ElBruno.MarkItDotNet.AI.svg?style=flat-square)](https://www.nuget.org/packages/ElBruno.MarkItDotNet.AI) | [![Downloads](https://img.shields.io/nuget/dt/ElBruno.MarkItDotNet.AI.svg?style=flat-square)](https://www.nuget.org/packages/ElBruno.MarkItDotNet.AI) | AI-powered OCR, captioning, transcription |
 | [ElBruno.MarkItDotNet.Whisper](https://www.nuget.org/packages/ElBruno.MarkItDotNet.Whisper) | [![NuGet](https://img.shields.io/nuget/v/ElBruno.MarkItDotNet.Whisper.svg?style=flat-square)](https://www.nuget.org/packages/ElBruno.MarkItDotNet.Whisper) | [![Downloads](https://img.shields.io/nuget/dt/ElBruno.MarkItDotNet.Whisper.svg?style=flat-square)](https://www.nuget.org/packages/ElBruno.MarkItDotNet.Whisper) | Local audio transcription via Whisper ONNX |
+| [ElBruno.MarkItDotNet.Cli](https://www.nuget.org/packages/ElBruno.MarkItDotNet.Cli) | [![NuGet](https://img.shields.io/nuget/v/ElBruno.MarkItDotNet.Cli.svg?style=flat-square)](https://www.nuget.org/packages/ElBruno.MarkItDotNet.Cli) | [![Downloads](https://img.shields.io/nuget/dt/ElBruno.MarkItDotNet.Cli.svg?style=flat-square)](https://www.nuget.org/packages/ElBruno.MarkItDotNet.Cli) | Command-line tool (`markitdown` command) |
 
 ## Description
 
@@ -46,6 +47,47 @@ ElBruno.MarkItDotNet provides a unified interface to convert 15+ file formats in
 
 - .NET 8.0 (LTS)
 - .NET 10.0
+
+## 🛠️ CLI Tool
+
+**Command-line interface for batch conversion and terminal workflows.**
+
+### Installation
+
+Install as a global tool:
+
+```bash
+dotnet tool install -g ElBruno.MarkItDotNet.Cli
+```
+
+### Quick Examples
+
+Convert a single file:
+
+```bash
+markitdown report.pdf
+markitdown report.pdf -o report.md
+```
+
+Batch convert a directory:
+
+```bash
+markitdown batch ./documents -o ./output -r --pattern "*.pdf"
+```
+
+Convert a web page:
+
+```bash
+markitdown url https://example.com -o page.md
+```
+
+Extract metadata as JSON:
+
+```bash
+markitdown data.csv --format json | jq .metadata.wordCount
+```
+
+**→ [Full CLI Documentation](docs/cli.md)**
 
 ## Packages
 
